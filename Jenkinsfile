@@ -3,16 +3,9 @@ pipeline {
 
     parameters {
         string(name: 'Target', defaultValue: '', description: 'Target environment')
-        
         choice(name: 'BRAND', choices: ['brand1', 'brand2'], description: 'Brand name (brand1 or brand2)')
-        
-        // SERVER choices depend on BRAND, so we list all possible servers
         choice(name: 'SERVER', choices: ['linuxtest1', 'windowstest1'], description: 'Server name')
-        
-        // APPLICATION choices based on BRAND
         choice(name: 'APPLICATION', choices: ['', 'nginx-app', 'MyWinApp'], description: 'Application name to restart (leave blank if none)')
-        
-        // SERVICE choices based on BRAND
         choice(name: 'SERVICE', choices: ['', 'nginx', 'IIS'], description: 'Service name to restart (leave blank if none)')
     }
 
@@ -136,7 +129,9 @@ pipeline {
 
                         if (params.APPLICATION?.trim()) {
                             if (params.BRAND.equalsIgnoreCase("brand1")) {
+                                // Restart app by killing and re-running
                                 restartCommands << "pgrep -f ${params.APPLICATION} && pkill -f ${params.APPLICATION} && nohup /usr/bin/${params.APPLICATION} &"
+                                // Check if process is running after restart
                                 checkCommands << "pgrep -f ${params.APPLICATION}"
                             } else if (params.BRAND.equalsIgnoreCase("brand2")) {
                                 restartCommands << "Restart-Process -Name ${params.APPLICATION}"
@@ -154,6 +149,7 @@ pipeline {
                             }
                         }
 
+                        // Execute restart commands
                         restartCommands.each { cmd ->
                             echo "Running command on server ${params.SERVER}: ${cmd}"
                             if (params.BRAND.equalsIgnoreCase("brand1")) {
@@ -166,11 +162,14 @@ pipeline {
                                 """
                             } else if (params.BRAND.equalsIgnoreCase("brand2")) {
                                 echo "Would run Windows command: ${cmd}"
+                                // Windows restart pending implementation
                             }
                         }
 
+                        // Small wait for restart to take effect
                         sleep 10
 
+                        // Verify restart success
                         def allChecksPassed = true
 
                         checkCommands.each { checkCmd ->
@@ -206,6 +205,7 @@ pipeline {
                             }
                         }
 
+                        // Print timestamp
                         def now = new Date()
                         echo "Restart checked at: ${now.format("yyyy-MM-dd HH:mm:ss")}"
 
